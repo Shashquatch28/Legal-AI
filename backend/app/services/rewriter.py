@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import re
+import time
+from typing import List
+
+from .model_router import generate_content
+
+_CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
+
+MAX_CHARS = 8000
+CHUNK_OVERLAP = 200
+
+def _clean(text: str) -> str:
+    if not text:
+        return ""
+    return _CONTROL_RE.sub("", text)
+
+def _split_with_overlap(
+    text: str,
+    max_len: int = MAX_CHARS,
+    overlap: int = CHUNK_OVERLAP,
+) -> List[str]:
+    text = (text or "").strip()
+    if len(text) <= max_len:
+        return [text]
+
+    chunks = []
+    i = 0
+    while i < len(text):
+        end = min(i + max_len, len(text))
+        chunks.append(text[i:end])
+        if end == len(text):
+            break
+        i = end - overlap
+
+    return chunks
+
+SYSTEM_PROMPT = """
+You are an expert legal editor.
+
+Rewrite the following legal clause into simple English.
+
+Rules:
+
+- Preserve the exact legal meaning.
+- Do NOT remove important details.
+- Do NOT add information.
+- Make it understandable for a normal person.
+- Return ONLY the rewritten text.
+"""
+
+# A dense clause near the chunk cap is where a small model most often loses
+# nuance -- ask the router to escalate to the bigger self-hosted model for it
+# (docs/v2/AI_STACK.md "Escalation without a bigger vendor").
+_HARD_CHUNK_CHARS = 4000
+
+
+def _rewrite_chunk(chunk: str, sensitivity: str = "internal") -> str:
+    prompt = f"""
+{SYSTEM_PROMPT}
+
+Clause:
+
+{chunk}
+"""
+    result = generate_content(
+        prompt,
+        task="clause_rewrite",
+        sensitivity=sensitivity,
+        temperature=0.3,
+        hard=len(chunk) >= _HARD_CHUNK_CHARS,
+    )
+    return result
+
+def rewrite_text(
+    text: str,
+    mode: str = "layman",
+    *,
+    sensitivity: str = "internal",
+):
+    start = time.time()
+    cleaned = _clean(text)
+
+    if not cleaned.strip():
+        return "", {
+            "latency_ms": 0,
+            "chunks": 0,
+        }
+
+    chunks = _split_with_overlap(cleaned)
+    outputs = []
+
+    for chunk in chunks:
+        outputs.append(_rewrite_chunk(chunk, sensitivity))
+
+    rewritten = "\n\n".join(outputs).strip()
+
+    meta = {
+        # The concrete model is chosen per-request by the Model Router
+        # (docs/v2/AI_STACK.md) -- this service names a task, not a model.
+        "model": "model-router:clause_rewrite",
+        "latency_ms": int((time.time() - start) * 1000),
+        "input_len": len(cleaned),
+        "output_len": len(rewritten),
+        "chunks": len(chunks),
+        "chunked": len(chunks) > 1,
+    }
+
+    return rewritten, meta

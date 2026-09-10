@@ -1,0 +1,52 @@
+# ----- Credentials -----
+genai-exhange-hackathon-9bec100f5d85.json
+
+# ---- Virtual environments ----
+gxh_venv/
+venv/
+.venv/
+ocr_venv/
+env/
+.env
+.env.*/
+
+# ----- Files -----
+test_files.py
+GenAI Exchange Hackathon _ Prototype Submission.pptx.pptx
+# ----- Pycache files -----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# ----- Local SQLite fallback DB (Phase 1 persistence layer) -----
+*.db
+*.db-journal
+
+# ----- DBOS's local job-scheduler state (Phase 7 durable engine) -----
+*.sqlite
+
+# ----- KùzuDB embedded KG database (Phase 7 collapsed data layer) -----
+kuzu_data/
+
+# ----- Original uploaded file blob store (Phase 7, app/services/file_store.py) -----
+file_storage/
+backend/file_storage/
+
+# ----- Trained model binaries (Phase 8, backend/training/) -- reproducible
+# via the training scripts; the eval report JSON + model card are what's
+# actually worth keeping in git, not the binary artifact itself -----
+backend/training/models/*.joblib
+backend/training/models/promoted/
+
+# ----- DVC local remote storage (Phase 8, `dvc init` at repo root) -- the
+# actual data/model blobs DVC pushes to; only the .dvc pointer files (small,
+# hash + size) are meant to live in git -----
+/dvc-storage/
+
+# ----- MLflow local file-based tracking store -----
+backend/training/mlruns/
+
+# ----- Legacy V1 planning docs -- superseded by docs/v2/, kept locally for
+# reference but not published (see docs/v2/ for the current architecture) -----
+docs/v1/

@@ -1,0 +1,47 @@
+name: Frontend CI
+
+on:
+  push:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22" # current LTS
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        # `npm install`, not `npm ci`: the lockfile's wasm-fallback subtree
+        # (@tailwindcss/oxide-wasm32-wasi -> @napi-rs/wasm-runtime -> @emnapi/*,
+        # and the same under unrs-resolver) is not recorded cross-platform-
+        # completely by npm, so `npm ci` fails its strict sync check on Linux
+        # in ~2s while passing on the dev machine. Those packages are optional
+        # wasm fallbacks that never run on an x64 runner anyway. `npm install`
+        # still honours every pinned version in the lockfile; for a lint+build
+        # gate that is the right trade.
+        run: npm install --no-audit --no-fund
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        # Turbopack production build. api-types.ts is committed, so no
+        # backend / codegen step is needed here.
+        run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

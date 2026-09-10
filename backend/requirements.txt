@@ -1,0 +1,37 @@
+# ---------------------------------------------------------------------------
+# CORE requirements -- "legalai-providers-core" + the app.
+# This set contains NO commercial-model SDK. The product runs end to end on
+# this alone: self-hosted generation via an OpenAI-compatible endpoint
+# (LLM_BASE_URL), self-hosted / Class-A embeddings and reranking.
+#
+#   requirements-external.txt  -> adds the optional commercial providers
+#                                 (google-genai, ...). Omitted from on-prem /
+#                                 air-gapped builds (docs/v2/AI_STACK.md).
+#   requirements-local.txt     -> adds the optional self-hosted neural
+#                                 embedding/reranker models (sentence-transformers).
+# ---------------------------------------------------------------------------
+fastapi==0.116.1
+uvicorn==0.35.0
+python-dotenv==1.1.1
+pydantic==2.11.7
+pydantic-settings==2.6.1
+PyYAML==6.0.2
+PyMuPDF==1.28.0
+python-docx==1.2.0
+faiss-cpu==1.12.0
+numpy==2.2.6   # 2.3.x requires Python >=3.11; 2.2.6 is the last 3.10-compatible release (and what the GPU box's torch stack pins)
+requests==2.32.5
+httpx==0.28.1
+python-multipart==0.0.20
+SQLAlchemy>=2.0.43,<2.1   # >=2.0.43: dbos (requirements-durable.txt) needs it, and alembic/mlflow/dvc in requirements-train.txt pull a 2.0.x anyway; <2.1 keeps the 2.0 API. Was ==2.0.36 (Python 3.10 era).
+psycopg[binary]==3.2.3
+redis==5.2.1
+dateparser==1.2.0
+opencv-python-headless==4.10.0.84
+neo4j==5.26.0
+rank_bm25==0.2.2
+langgraph==0.2.60
+
+# ---- Dev / test dependencies ----
+pytest==8.3.4
+pytest-asyncio==0.25.2

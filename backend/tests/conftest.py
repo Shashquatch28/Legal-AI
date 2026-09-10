@@ -1,0 +1,65 @@
+import os
+
+# Must be set before any module imports app.config.get_settings() for the
+# first time (e.g. app.main, app.services.genai_client), so the Settings()
+# singleton never sees a missing GOOGLE_API_KEY during tests, and the DB/auth
+# layer uses an isolated in-memory database instead of a real Postgres.
+os.environ.setdefault("GOOGLE_API_KEY", "test-dummy-key")
+os.environ.setdefault("GENAI_MODEL", "gemini-flash-latest")
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+os.environ.setdefault("REDIS_URL", "")  # rate limiting disabled in tests; see test_rate_limit.py for its own coverage
+os.environ.setdefault("AUTH_REQUIRED", "false")
+# Tests run in the self-hosted-first posture (docs/v2/AI_STACK.md): no external
+# (Class C) provider is routed to by default. Embeddings/reranking fall to the
+# Class A local providers; an un-mocked generate() call raises a clear
+# ModelRouterError instead of making a real network call with the dummy key.
+# A test that specifically exercises the Gemini routing path flips this.
+os.environ.setdefault("EXTERNAL_PROVIDERS_ENABLED", "false")
+# Phase 6 in-process models (NLI head, GLiNER NER) are OFF by default in the
+# suite so tests don't load a transformers model -- the Verifier exercises its
+# lexical-overlap fallback path. tests/test_nli_faithfulness.py flips
+# NLI_ENABLED on and skips itself when transformers isn't installed.
+os.environ.setdefault("NLI_ENABLED", "false")
+os.environ.setdefault("NER_ENABLED", "false")
+# Same reasoning for the in-process sentence-transformers embed/rerank provider
+# (Class B): OFF in the suite so embeddings/reranking deterministically resolve
+# to the Class-A hashing/lexical floor regardless of whether the optional
+# `sentence-transformers` extra happens to be installed in this environment.
+# tests/test_local_neural_provider.py flips it on and skips without the extra.
+os.environ.setdefault("LOCAL_NEURAL_ENABLED", "false")
+# Deliberately NOT the real default port: tests must not depend on whether
+# docker-compose happens to be running on this machine right now. KG tests
+# use a fake client (test_kg_builder.py) for anything Memgraph-dependent.
+os.environ.setdefault("MEMGRAPH_URI", "bolt://127.0.0.1:65535")
+# Original-file blob store (Phase 7, app/services/file_store.py): point it at
+# a throwaway temp dir so the suite never writes uploaded bytes into the repo.
+import tempfile as _tempfile
+os.environ.setdefault(
+    "FILE_STORAGE_DIR",
+    os.path.join(_tempfile.gettempdir(), "legalai_test_file_storage"),
+)
+
+import pytest
+from fastapi.testclient import TestClient
+
+from app.main import app
+
+
+@pytest.fixture
+def client():
+    # Context-manager form so FastAPI's startup event (init_db()) runs.
+    with TestClient(app) as c:
+        yield c
+
+
+@pytest.fixture
+def db_session(client):
+    """A session on the same (in-memory) engine the app under test uses,
+    for tests that need to set up or inspect rows directly."""
+    from app.db import SessionLocal
+
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
