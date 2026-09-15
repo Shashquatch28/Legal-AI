@@ -218,7 +218,7 @@ Everything is self-hostable. Nothing phones home by default.
 ### 1. Backend — zero-config path
 
 ```bash
-git clone https://github.com/shourya-tiwari/Legal-AI.git
+git clone https://github.com/ShashwatKumar/Legal-AI
 cd Legal-AI/backend
 
 python -m venv .venv
@@ -508,8 +508,8 @@ patent-counsel prior-art searches) are tracked explicitly, not hidden.
 
 ## Contributing
 
-This is a solo portfolio / final-year engineering project, but issues and
-discussion are welcome. If you open a PR:
+This project was developed collaboratively by Shashwat Kumar and Shourya Tiwari. Contributions, suggestions, and improvements are welcome.
+If you open a PR:
 
 - Backend: `pytest` must stay green, and `test_provider_isolation` must pass —
   never import a provider SDK outside `model_router/providers/`.
